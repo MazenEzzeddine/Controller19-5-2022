@@ -36,11 +36,13 @@ public class Controller implements Runnable {
 
 
     static Map<String, ConsumerGroupDescription> consumerGroupDescriptionMap;
-    ///////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
 
 
     static Instant lastUpScaleDecision;
     static Instant lastDownScaleDecision;
+    static Instant lastCGQuery;
+
     static boolean firstIteration = true;
 
     static TopicDescription td;
@@ -137,10 +139,6 @@ public class Controller implements Runnable {
         // log.info("Date(System.currentTimeMillis()) {}",new Date(System.currentTimeMillis()));
         for (TopicPartitionInfo p : td.partitions()) {
             requestLatestOffsets.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest());
-           /* requestTimestampOffsets2.put(new TopicPartition(topic, p.partition()),
-           OffsetSpec.forTimestamp(Instant.now().minusMillis(1100).toEpochMilli()));
-            requestTimestampOffsets1.put(new TopicPartition(topic, p.partition()),
-             OffsetSpec.forTimestamp(Instant.now().minusMillis(sleep + 1100).toEpochMilli()));*/
             requestTimestampOffsets2.put(new TopicPartition(topic, p.partition()),
                     OffsetSpec.forTimestamp(Instant.now().minusMillis(1500).toEpochMilli()));
             requestTimestampOffsets1.put(new TopicPartition(topic, p.partition()),
@@ -157,7 +155,7 @@ public class Controller implements Runnable {
 
 
         long totalArrivalRate = 0;
-        double currentPartitionArrivalRate = 0;
+        double currentPartitionArrivalRate;
         Map<Integer, Double> previousPartitionArrivalRate = new HashMap<>();
         for (TopicPartitionInfo p : td.partitions()) {
             previousPartitionArrivalRate.put(p.partition(), 0.0);
@@ -168,6 +166,10 @@ public class Controller implements Runnable {
             long latestOffset = latestOffsets.get(t).offset();
             long timeoffset1 = timestampOffsets1.get(t).offset();
             long timeoffset2 = timestampOffsets2.get(t).offset();
+            long committedoffset = committedOffsets.get(t).offset();
+
+
+            partitions.get(p.partition()).setLag(latestOffset - committedoffset);
 
             if (timeoffset2 == -1) {
                 timeoffset2 = latestOffset;
@@ -175,12 +177,25 @@ public class Controller implements Runnable {
             if (timeoffset1 == -1) {
                 // NOT very critical condition
                 currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
-                log.info("Arrival rate into partition {} is {}", t.partition(), currentPartitionArrivalRate);
+               // log.info("Arrival rate into partition {} is {}", t.partition(), currentPartitionArrivalRate);
+                partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
+                log.info("Arrival rate into partition {} is {}", t.partition(), partitions.get(p.partition()).getArrivalRate());
+
+                log.info("lag of  partition {} is {}", t.partition(),
+                        partitions.get(p.partition()).getLag());
+
 
             } else {
                 currentPartitionArrivalRate = (double) (timeoffset2 - timeoffset1) / doublesleep;
-                log.info(" timeoffset1 {}, timeoffset2 {}", timeoffset1, timeoffset2);
-                log.info("Arrival rate into partition {} is {}", t.partition(), currentPartitionArrivalRate);
+                //log.info(" timeoffset1 {}, timeoffset2 {}", timeoffset1, timeoffset2);
+               // log.info("Arrival rate into partition {} is {}", t.partition(), currentPartitionArrivalRate);
+                partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
+                log.info(" Arrival rate into partition {} is {}", t.partition(),
+                        partitions.get(p.partition()).getArrivalRate());
+
+                log.info(" lag of  partition {} is {}", t.partition(),
+                        partitions.get(p.partition()).getLag());
+
             }
             //TODO add a condition for when both offsets timeoffset2 and timeoffset1 do not exist, i.e., are -1,
             previousPartitionArrivalRate.put(p.partition(), currentPartitionArrivalRate);
@@ -189,44 +204,13 @@ public class Controller implements Runnable {
         }
         log.info("totalArrivalRate {}", totalArrivalRate);
 
-        youMightWanttoScaleUsingBinPack();
+        //youMightWanttoScaleUsingBinPack();
 
-/*
-        if (!firstIteration) {
-            //computeTotalArrivalRate();
-            youMightWanttoScale(totalArrivalRate);
-        } else {
-            firstIteration = false;
-        }*/
+
     }
 
 
-    private static void getCommittedLatestOffsetsAndLag() throws ExecutionException, InterruptedException {
-        committedOffsets = admin.listConsumerGroupOffsets(CONSUMER_GROUP)
-                .partitionsToOffsetAndMetadata().get();
 
-        Map<TopicPartition, OffsetSpec> requestLatestOffsets = new HashMap<>();
-        for (TopicPartitionInfo p : td.partitions()) {
-            requestLatestOffsets.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest());
-        }
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
-                admin.listOffsets(requestLatestOffsets).all().get();
-
-        for (TopicPartitionInfo p : td.partitions()) {
-            TopicPartition t = new TopicPartition(topic, p.partition());
-            long latestOffset = latestOffsets.get(t).offset();
-            long committedoffset = committedOffsets.get(t).offset();
-
-            partitions.get(p.partition()).setPreviousLastOffset(partitions.get(p.partition()).getCurrentLastOffset());
-            partitions.get(p.partition()).setCurrentLastOffset(latestOffset);
-            partitions.get(p.partition()).setLag(latestOffset - committedoffset);
-        }
-        if (!firstIteration) {
-            computeTotalArrivalRate();
-        } else {
-            firstIteration = false;
-        }
-    }
 
 
     private static void computeTotalArrivalRate() throws ExecutionException, InterruptedException {
@@ -249,8 +233,9 @@ public class Controller implements Runnable {
         //
         //
 
-        if (Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() >= 30) {
+        if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 15) {
             queryConsumerGroup();
+            lastCGQuery = Instant.now();
         }
         youMightWanttoScaleUsingBinPack();
 
@@ -298,10 +283,13 @@ public class Controller implements Runnable {
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
                     log.info("I have Upscaled you should have {}", neededsize);
+
                 }
             }
             lastScaleUpDecision = Instant.now();
             lastScaleDownDecision = Instant.now();
+            lastCGQuery = Instant.now();
+
 
         } else {
 
@@ -316,6 +304,7 @@ public class Controller implements Runnable {
 
                     lastScaleUpDecision = Instant.now();
                     lastScaleDownDecision = Instant.now();
+                    lastCGQuery = Instant.now();
                 }
             }
         }
@@ -340,27 +329,22 @@ public class Controller implements Runnable {
 
         //if a certain partition has a lag higher than R Wmax set its lag to R*Wmax
         for (Partition partition : parts) {
-            // log.info("partition {} has the following lag {}", partition.getId(), partition.getLag());
             if (partition.getLag() > maxLagCapacity) {
-                log.info("Since partition {} has lag {} higher than consumer capacity {}" +
+                log.info("Since partition {} has lag {} higher than consumer capacity times wsla {}" +
                         " we are truncating its lag", partition.getId(), partition.getLag(), maxLagCapacity);
                 partition.setLag(maxLagCapacity);
             }
         }
 
-
-
         //if a certain partition has an arrival rate  higher than R  set its arrival rate  to R
         for (Partition partition : parts) {
-            //log.info("partition {} has the following lag {}", partition.getId(), partition.getLag());
             if (partition.getArrivalRate() > dynamicAverageMaxConsumptionRate) {
-                log.info("Since partition {} has lag {} higher than consumer capacity {}" +
+                log.info("Since partition {} has arrival rate {} higher than consumer service rate {}" +
                                 " we are truncating its lag", partition.getId(),  String.format("%.2f",  partition.getArrivalRate()),
                         String.format("%.2f", partition.getArrivalRate()));
                 partition.setArrivalRate(dynamicAverageMaxConsumptionRate);
             }
         }
-
 
         //start the bin pack FFD with sort
         Collections.sort(parts, Collections.reverseOrder());
@@ -368,10 +352,7 @@ public class Controller implements Runnable {
         Consumer consumer = null;
         for (Partition partition : parts) {
             for (Consumer cons : consumers) {
-               /* if (cons.getRemainingLagCapacity() > partition.getLag() &&
-                        cons.getRemainingArrivalCapacity() > partition.getArrivalRate()) {*/
 
-                    //////
                 //TODO externalize these choices on the inout to the FFD bin pack
                    if (cons.getRemainingLagCapacity() >=   partition.getAverageLag() &&
                             cons.getRemainingArrivalCapacity() >= partition.getArrivalRate()) {
@@ -417,10 +398,13 @@ public class Controller implements Runnable {
         }
         lastUpScaleDecision = Instant.now();
         lastDownScaleDecision = Instant.now();
+        lastCGQuery = Instant.now();
 
         doublesleep = (double) sleep / 1000.0;
 
         try {
+
+            //Initial delay so that the producer has started.
             Thread.sleep(60*1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -430,7 +414,7 @@ public class Controller implements Runnable {
         while (true) {
             log.info("New Iteration:");
             try {
-                getCommittedLatestOffsetsAndLag();
+                getCommittedLatestOffsetsAndLag2();
             } catch (ExecutionException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -442,13 +426,42 @@ public class Controller implements Runnable {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
-
             log.info("End Iteration;");
             log.info("=============================================");
         }
     }
 
+
+
+
+   /* private static void getCommittedLatestOffsetsAndLag() throws ExecutionException, InterruptedException {
+
+
+        committedOffsets = admin.listConsumerGroupOffsets(CONSUMER_GROUP)
+                .partitionsToOffsetAndMetadata().get();
+
+        Map<TopicPartition, OffsetSpec> requestLatestOffsets = new HashMap<>();
+        for (TopicPartitionInfo p : td.partitions()) {
+            requestLatestOffsets.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest());
+        }
+        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
+                admin.listOffsets(requestLatestOffsets).all().get();
+
+        for (TopicPartitionInfo p : td.partitions()) {
+            TopicPartition t = new TopicPartition(topic, p.partition());
+            long latestOffset = latestOffsets.get(t).offset();
+            long committedoffset = committedOffsets.get(t).offset();
+
+            partitions.get(p.partition()).setPreviousLastOffset(partitions.get(p.partition()).getCurrentLastOffset());
+            partitions.get(p.partition()).setCurrentLastOffset(latestOffset);
+            partitions.get(p.partition()).setLag(latestOffset - committedoffset);
+        }
+        if (!firstIteration) {
+            computeTotalArrivalRate();
+        } else {
+            firstIteration = false;
+        }
+    }*/
 
 
 
