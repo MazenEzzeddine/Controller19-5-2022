@@ -34,16 +34,17 @@ public class Controller implements Runnable {
     static String BOOTSTRAP_SERVERS;
     static Map<TopicPartition, OffsetAndMetadata> committedOffsets;
 
+    static Instant lastScaleTime;
+    static long joiningTime;
+
+
 
     static Map<String, ConsumerGroupDescription> consumerGroupDescriptionMap;
     //////////////////////////////////////////////////////////////////////////////
 
 
-    static Instant lastUpScaleDecision;
-    static Instant lastDownScaleDecision;
-    static Instant lastCGQuery;
 
-    static boolean firstIteration = true;
+
 
     static TopicDescription td;
     static DescribeTopicsResult tdr;
@@ -59,8 +60,9 @@ public class Controller implements Runnable {
 
     static Instant lastScaleUpDecision;
     static Instant lastScaleDownDecision;
+    static Instant lastCGQuery;
 
-    static boolean firstTime = true;
+
 
 
     private static void readEnvAndCrateAdminClient() throws ExecutionException, InterruptedException {
@@ -78,6 +80,8 @@ public class Controller implements Runnable {
 
         lastScaleUpDecision = Instant.now();
         lastScaleDownDecision = Instant.now();
+        lastCGQuery = Instant.now();
+
 
 
         for (TopicPartitionInfo p : td.partitions()) {
@@ -127,7 +131,7 @@ public class Controller implements Runnable {
         return rateResponse.getRate();
     }
 
-    private static void getCommittedLatestOffsetsAndLag2() throws ExecutionException, InterruptedException {
+    private static void getCommittedLatestOffsetsAndLag() throws ExecutionException, InterruptedException {
         committedOffsets = admin.listConsumerGroupOffsets(CONSUMER_GROUP)
                 .partitionsToOffsetAndMetadata().get();
 
@@ -219,33 +223,7 @@ public class Controller implements Runnable {
 
 
 
-    private static void computeTotalArrivalRate() throws ExecutionException, InterruptedException {
 
-        double totalArrivalRate = 0;
-        long totallag = 0;
-
-        for (Partition p : partitions) {
-            p.setArrivalRate((double) (p.getCurrentLastOffset() - p.getPreviousLastOffset()) / doublesleep);
-            totalArrivalRate += (p.getCurrentLastOffset() - p.getPreviousLastOffset()) / doublesleep;
-            totallag += p.getLag();
-            log.info(p.toString());
-            log.info(p.printPartitionRates());
-        }
-
-        log.info("current totalArrivalRate from this iteration/sampling {}", String.format("%.2f",totalArrivalRate));
-        log.info("totallag {}", totallag);
-
-
-        //
-        //
-
-        if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 15) {
-            queryConsumerGroup();
-            lastCGQuery = Instant.now();
-        }
-        youMightWanttoScaleUsingBinPack();
-
-    }
 
 
     private static void youMightWanttoScaleUsingBinPack() {
@@ -298,6 +276,8 @@ public class Controller implements Runnable {
             lastScaleUpDecision = Instant.now();
             lastScaleDownDecision = Instant.now();
             lastCGQuery = Instant.now();
+            lastScaleTime = Instant.now();
+
 
 
         } else {
@@ -314,6 +294,7 @@ public class Controller implements Runnable {
                     lastScaleUpDecision = Instant.now();
                     lastScaleDownDecision = Instant.now();
                     lastCGQuery = Instant.now();
+                    lastScaleTime = Instant.now();
                 }
             }
         }
@@ -330,7 +311,7 @@ public class Controller implements Runnable {
         for (Partition partition : partitions) {
             parts.add(new Partition(partition.getId(), partition.getLag(), partition.getArrivalRate()));
         }
-        dynamicAverageMaxConsumptionRate = 29;
+        dynamicAverageMaxConsumptionRate = 29.0;
 
         long maxLagCapacity;
 
@@ -407,9 +388,7 @@ public class Controller implements Runnable {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        lastUpScaleDecision = Instant.now();
-        lastDownScaleDecision = Instant.now();
-        lastCGQuery = Instant.now();
+
 
         doublesleep = (double) sleep / 1000.0;
 
@@ -425,7 +404,7 @@ public class Controller implements Runnable {
         while (true) {
             log.info("New Iteration:");
             try {
-                getCommittedLatestOffsetsAndLag2();
+                getCommittedLatestOffsetsAndLag();
             } catch (ExecutionException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -445,39 +424,7 @@ public class Controller implements Runnable {
 
 
 
-   /* private static void getCommittedLatestOffsetsAndLag() throws ExecutionException, InterruptedException {
 
-
-        committedOffsets = admin.listConsumerGroupOffsets(CONSUMER_GROUP)
-                .partitionsToOffsetAndMetadata().get();
-
-        Map<TopicPartition, OffsetSpec> requestLatestOffsets = new HashMap<>();
-        for (TopicPartitionInfo p : td.partitions()) {
-            requestLatestOffsets.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest());
-        }
-        Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
-                admin.listOffsets(requestLatestOffsets).all().get();
-
-        for (TopicPartitionInfo p : td.partitions()) {
-            TopicPartition t = new TopicPartition(topic, p.partition());
-            long latestOffset = latestOffsets.get(t).offset();
-            long committedoffset = committedOffsets.get(t).offset();
-
-            partitions.get(p.partition()).setPreviousLastOffset(partitions.get(p.partition()).getCurrentLastOffset());
-            partitions.get(p.partition()).setCurrentLastOffset(latestOffset);
-            partitions.get(p.partition()).setLag(latestOffset - committedoffset);
-        }
-        if (!firstIteration) {
-            computeTotalArrivalRate();
-        } else {
-            firstIteration = false;
-        }
-    }*/
-
-
-
-
-    /////////////////////////////////try the old bin pack//////////////////////////////////////////////
 
 
     //////////////////////////////////////////////////////////////////////////////

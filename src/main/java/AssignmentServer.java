@@ -5,6 +5,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +30,7 @@ public class AssignmentServer implements Runnable{
     public void start() throws IOException {
 
 
-        System.out.println("Server Started");
+        log.info("Server Started");
         server.start();
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
@@ -69,7 +71,7 @@ public class AssignmentServer implements Runnable{
         @Override
         public void getAssignment(AssignmentRequest request, StreamObserver<AssignmentResponse> responseObserver) {
 
-            System.out.println(request.getRequest());
+           log.info(request.getRequest());
             List<Consumer> assignment = Controller.assignment;
             log.info("The assignment is {}", assignment);
 
@@ -96,7 +98,9 @@ public class AssignmentServer implements Runnable{
 
             responseObserver.onNext(AssignmentResponse.newBuilder().addAllConsumers(assignmentReply).build());
             responseObserver.onCompleted();
-            System.out.println("Sent Assignment to client");
+            log.info("Sent Assignment to client");
+            Controller.joiningTime = Duration.between(Instant.now(), Controller.lastScaleTime).getSeconds();
+            log.info("joiningTime {}", Controller.joiningTime);
 
         }
     }
