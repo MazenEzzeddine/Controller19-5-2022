@@ -254,7 +254,12 @@ public class Controller implements Runnable {
         int size = consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
         //dynamicAverageMaxConsumptionRate = dynamicTotalMaxConsumptionRate / (double) (size);
         //binPackAndScale();
-        scaleAsPerBinPack(size);
+
+        if(Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() >= 60) {
+            scaleAsPerBinPack(size);
+        } else {
+            log.info("Scale  cooldown period has not elapsed yet not taking decisions");
+        }
     }
 
 
@@ -279,7 +284,7 @@ public class Controller implements Runnable {
         } else if (replicasForscale > 0) {
             //checking for scale up coooldown
             //TODO externalize these cool down
-            if (Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() < 30 /*2*doublesleep*/) {
+            if (Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() <= 60 /*2*doublesleep*/) {
                 log.info("Scale up cooldown period has not elapsed yet not taking decisions");
                 return;
             } else {
@@ -325,7 +330,7 @@ public class Controller implements Runnable {
         for (Partition partition : partitions) {
             parts.add(new Partition(partition.getId(), partition.getLag(), partition.getArrivalRate()));
         }
-        dynamicAverageMaxConsumptionRate = 30;
+        dynamicAverageMaxConsumptionRate = 29;
 
         long maxLagCapacity;
 

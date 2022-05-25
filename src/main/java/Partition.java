@@ -183,7 +183,7 @@ public class Partition implements Comparable<Partition> {
                 ", arrivalRate= " +  String.format("%.2f",arrivalRate) +
                 ", averageArrivalRate= " +  String.format("%.2f",getAverageArrivalRate()) +
                 ", averageLag= " +  String.format("%.2f",getAverageLag()) +
-        '}';
+        "}\n";
     }
 
 
