@@ -53,13 +53,13 @@ public class Consumer {
 
     @Override
     public String toString() {
-        return "Consumer{" + "id="+ id +
+        return "\nConsumer{" + "id="+ id +
                 ",  lagCapacity=" +lagCapacity +
                 ", remainingArrivalCapacity=" + String.format("%.2f",remainingArrivalCapacity) +
-                ", assignedPartitions=" + assignedPartitions +
                 ", arrivalCapacity=" + String.format("%.2f",arrivalCapacity) +
                 ", remainingLagCapacity=" + remainingLagCapacity +
-                "}\n";
+                ", assignedPartitions= \n" + assignedPartitions +
+                "}";
     }
 
     @Override
