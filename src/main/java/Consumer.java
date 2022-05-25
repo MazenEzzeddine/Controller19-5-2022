@@ -59,7 +59,7 @@ public class Consumer {
                 ", assignedPartitions=" + assignedPartitions +
                 ", arrivalCapacity=" + String.format("%.2f",arrivalCapacity) +
                 ", remainingLagCapacity=" + remainingLagCapacity +
-                '}';
+                "}\n";
     }
 
     @Override

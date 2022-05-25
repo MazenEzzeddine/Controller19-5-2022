@@ -95,7 +95,7 @@ public class Controller implements Runnable {
 
         consumerGroupDescriptionMap = futureOfDescribeConsumerGroupsResult.get();
 
-        dynamicTotalMaxConsumptionRate = 0.0;
+      /*  dynamicTotalMaxConsumptionRate = 0.0;
         for (MemberDescription memberDescription : consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members()) {
             log.info("Calling the consumer {} for its consumption rate ", memberDescription.host());
 
@@ -107,7 +107,7 @@ public class Controller implements Runnable {
                 (float) consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
 
         log.info("The total consumption rate of the CG is {}", String.format("%.2f",dynamicTotalMaxConsumptionRate));
-        log.info("The average consumption rate of the CG is {}", String.format("%.2f", dynamicAverageMaxConsumptionRate));
+        log.info("The average consumption rate of the CG is {}", String.format("%.2f", dynamicAverageMaxConsumptionRate));*/
 
     }
 
@@ -204,7 +204,13 @@ public class Controller implements Runnable {
         }
         log.info("totalArrivalRate {}", totalArrivalRate);
 
-        //youMightWanttoScaleUsingBinPack();
+
+        if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 15) {
+            queryConsumerGroup();
+            lastCGQuery = Instant.now();
+        }
+
+        youMightWanttoScaleUsingBinPack();
 
 
     }
@@ -246,16 +252,14 @@ public class Controller implements Runnable {
 
         log.info("Calling the bin pack scaler");
         int size = consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
-        dynamicAverageMaxConsumptionRate = dynamicTotalMaxConsumptionRate / (double) (size);
+        //dynamicAverageMaxConsumptionRate = dynamicTotalMaxConsumptionRate / (double) (size);
         //binPackAndScale();
         scaleAsPerBinPack(size);
     }
 
 
     public static void scaleAsPerBinPack(int currentsize) {
-        //same number of consumers but different different assignment
-      /*  if (!firstTime)
-            return;*/
+
 
         log.info("Currently we have this number of consumers {}", currentsize);
         int neededsize = binPackAndScale();
@@ -321,10 +325,12 @@ public class Controller implements Runnable {
         for (Partition partition : partitions) {
             parts.add(new Partition(partition.getId(), partition.getLag(), partition.getArrivalRate()));
         }
+        dynamicAverageMaxConsumptionRate = 30;
 
         long maxLagCapacity;
 
         maxLagCapacity = (long) (dynamicAverageMaxConsumptionRate * wsla);
+
         consumers.add(new Consumer(consumerCount, maxLagCapacity, dynamicAverageMaxConsumptionRate));
 
         //if a certain partition has a lag higher than R Wmax set its lag to R*Wmax

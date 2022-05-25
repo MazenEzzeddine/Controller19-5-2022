@@ -154,7 +154,6 @@ public class Partition implements Comparable<Partition> {
 
 
     private double getAverageRateForLag() {
-
         double averageRateForLag =0.0;
         for(int i=0; i<4; i++) {
             //offsetWindow[i] = 0L;
