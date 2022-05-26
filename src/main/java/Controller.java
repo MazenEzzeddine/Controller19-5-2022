@@ -187,6 +187,7 @@ public class Controller implements Runnable {
 
                 log.info("lag of  partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getLag());
+                log.info(p);
 
 
             } else {
@@ -199,6 +200,8 @@ public class Controller implements Runnable {
 
                 log.info(" lag of  partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getLag());
+                log.info(partitions.get(p.partition()));
+
 
             }
             //TODO add a condition for when both offsets timeoffset2 and timeoffset1 do not exist, i.e., are -1,
@@ -371,7 +374,10 @@ public class Controller implements Runnable {
         log.info(" The BP scaler recommended {}", consumers.size());
 
         for (Consumer cons : consumers) {
-            log.info(cons.toString());
+            log.info("consumer {} is assigned the following partitions", cons.getId() );
+            for(Partition p : cons.getAssignedPartitions()) {
+                log.info("Partition {}", p.getId());
+            }
         }
         assignment = consumers;
         return consumers.size();
