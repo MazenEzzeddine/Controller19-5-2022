@@ -17,15 +17,10 @@ import java.util.concurrent.ExecutionException;
 
 
 public class Controller implements Runnable {
-    
-
 
     private static final Logger log = LogManager.getLogger(Controller.class);
-
     public static String CONSUMER_GROUP;
     public static AdminClient admin = null;
-
-
     static Long sleep;
     static double doublesleep;
     static String topic;
@@ -33,31 +28,20 @@ public class Controller implements Runnable {
     static Long poll;
     static String BOOTSTRAP_SERVERS;
     static Map<TopicPartition, OffsetAndMetadata> committedOffsets;
-
     static Instant lastScaleTime;
     static long joiningTime;
 
-
-
     static Map<String, ConsumerGroupDescription> consumerGroupDescriptionMap;
     //////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
     static TopicDescription td;
     static DescribeTopicsResult tdr;
     static ArrayList<Partition> partitions = new ArrayList<>();
-
 
     static double dynamicTotalMaxConsumptionRate = 0.0;
     static double dynamicAverageMaxConsumptionRate = 0.0;
 
     static double wsla = 5.0;
-
     static List<Consumer> assignment;
-
     static Instant lastScaleUpDecision;
     static Instant lastScaleDownDecision;
     static Instant lastCGQuery;
@@ -77,12 +61,9 @@ public class Controller implements Runnable {
         admin = AdminClient.create(props);
         tdr = admin.describeTopics(Collections.singletonList(topic));
         td = tdr.values().get(topic).get();
-
         lastScaleUpDecision = Instant.now();
         lastScaleDownDecision = Instant.now();
         lastCGQuery = Instant.now();
-
-
 
         for (TopicPartitionInfo p : td.partitions()) {
             partitions.add(new Partition(p.partition(), 0, 0));
@@ -139,8 +120,6 @@ public class Controller implements Runnable {
         Map<TopicPartition, OffsetSpec> requestTimestampOffsets1 = new HashMap<>();
         Map<TopicPartition, OffsetSpec> requestTimestampOffsets2 = new HashMap<>();
 
-
-        // log.info("Date(System.currentTimeMillis()) {}",new Date(System.currentTimeMillis()));
         for (TopicPartitionInfo p : td.partitions()) {
             requestLatestOffsets.put(new TopicPartition(topic, p.partition()), OffsetSpec.latest());
             requestTimestampOffsets2.put(new TopicPartition(topic, p.partition()),
@@ -151,7 +130,6 @@ public class Controller implements Runnable {
 
         Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
                 admin.listOffsets(requestLatestOffsets).all().get();
-
         Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> timestampOffsets1 =
                 admin.listOffsets(requestTimestampOffsets1).all().get();
         Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> timestampOffsets2 =
@@ -181,19 +159,13 @@ public class Controller implements Runnable {
             if (timeoffset1 == -1) {
                 // NOT very critical condition
                 currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
-               // log.info("Arrival rate into partition {} is {}", t.partition(), currentPartitionArrivalRate);
                 partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
                 log.info("Arrival rate into partition {} is {}", t.partition(), partitions.get(p.partition()).getArrivalRate());
-
                 log.info("lag of  partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getLag());
-                log.info(p);
-
-
+                log.info(partitions.get(p.partition()));
             } else {
                 currentPartitionArrivalRate = (double) (timeoffset2 - timeoffset1) / doublesleep;
-                //log.info(" timeoffset1 {}, timeoffset2 {}", timeoffset1, timeoffset2);
-               // log.info("Arrival rate into partition {} is {}", t.partition(), currentPartitionArrivalRate);
                 partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
                 log.info(" Arrival rate into partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getArrivalRate());
@@ -201,25 +173,18 @@ public class Controller implements Runnable {
                 log.info(" lag of  partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getLag());
                 log.info(partitions.get(p.partition()));
-
-
             }
             //TODO add a condition for when both offsets timeoffset2 and timeoffset1 do not exist, i.e., are -1,
             previousPartitionArrivalRate.put(p.partition(), currentPartitionArrivalRate);
             totalArrivalRate += currentPartitionArrivalRate;
-
         }
         log.info("totalArrivalRate {}", totalArrivalRate);
-
 
         if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 15) {
             queryConsumerGroup();
             lastCGQuery = Instant.now();
         }
-
         youMightWanttoScaleUsingBinPack();
-
-
     }
 
 
@@ -227,15 +192,9 @@ public class Controller implements Runnable {
 
 
 
-
-
     private static void youMightWanttoScaleUsingBinPack() {
-
         log.info("Calling the bin pack scaler");
         int size = consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
-        //dynamicAverageMaxConsumptionRate = dynamicTotalMaxConsumptionRate / (double) (size);
-        //binPackAndScale();
-
         if(Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() >= 60) {
             scaleAsPerBinPack(size);
         } else {
@@ -265,7 +224,7 @@ public class Controller implements Runnable {
         } else if (replicasForscale > 0) {
             //checking for scale up coooldown
             //TODO externalize these cool down
-            if (Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() <= 60 /*2*doublesleep*/) {
+            if (Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() <= 60 ) {
                 log.info("Scale up cooldown period has not elapsed yet not taking decisions");
                 return;
             } else {
@@ -273,27 +232,20 @@ public class Controller implements Runnable {
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
                     log.info("I have Upscaled you should have {}", neededsize);
-
                 }
             }
             lastScaleUpDecision = Instant.now();
             lastScaleDownDecision = Instant.now();
             lastCGQuery = Instant.now();
             lastScaleTime = Instant.now();
-
-
-
         } else {
-
-            if (Duration.between(lastScaleDownDecision, Instant.now()).toSeconds() <= 60/* 4*doublesleep*/) {
+            if (Duration.between(lastScaleDownDecision, Instant.now()).toSeconds() <= 60) {
                 log.info("Scale down cooldown period has not elapsed yet not taking scale down decisions");
                 return;
             } else {
-
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
                     log.info("I have Downscaled you should have {}", neededsize);
-
                     lastScaleUpDecision = Instant.now();
                     lastScaleDownDecision = Instant.now();
                     lastCGQuery = Instant.now();
@@ -317,9 +269,7 @@ public class Controller implements Runnable {
         dynamicAverageMaxConsumptionRate = 95.0;
 
         long maxLagCapacity;
-
         maxLagCapacity = (long) (dynamicAverageMaxConsumptionRate * wsla);
-
         consumers.add(new Consumer(consumerCount, maxLagCapacity, dynamicAverageMaxConsumptionRate));
 
         //if a certain partition has a lag higher than R Wmax set its lag to R*Wmax
@@ -335,7 +285,7 @@ public class Controller implements Runnable {
         for (Partition partition : parts) {
             if (partition.getArrivalRate() > dynamicAverageMaxConsumptionRate) {
                 log.info("Since partition {} has arrival rate {} higher than consumer service rate {}" +
-                                " we are truncating its lag", partition.getId(),  String.format("%.2f",  partition.getArrivalRate()),
+                                " we are truncating its arrival rate", partition.getId(),  String.format("%.2f",  partition.getArrivalRate()),
                         String.format("%.2f", partition.getArrivalRate()));
                 partition.setArrivalRate(dynamicAverageMaxConsumptionRate);
             }
@@ -347,11 +297,9 @@ public class Controller implements Runnable {
         Consumer consumer = null;
         for (Partition partition : parts) {
             for (Consumer cons : consumers) {
-
                 //TODO externalize these choices on the inout to the FFD bin pack
                    if (cons.getRemainingLagCapacity() >=   partition.getAverageLag() &&
                             cons.getRemainingArrivalCapacity() >= partition.getArrivalRate()) {
-                    /////
                     cons.assignPartition(partition);
                     // we are done with this partition, go to next
                     break;
@@ -381,7 +329,6 @@ public class Controller implements Runnable {
         }
         assignment = consumers;
         return consumers.size();
-
     }
 
 
@@ -399,14 +346,11 @@ public class Controller implements Runnable {
         doublesleep = (double) sleep / 1000.0;
 
         try {
-
             //Initial delay so that the producer has started.
             Thread.sleep(60*1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
-
         while (true) {
             log.info("New Iteration:");
             try {
@@ -417,23 +361,16 @@ public class Controller implements Runnable {
                 e.printStackTrace();
             }
             log.info("Sleeping for {} seconds", sleep / 1000.0);
+            log.info("End Iteration;");
+            log.info("=============================================");
             try {
                 Thread.sleep(sleep);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            log.info("End Iteration;");
-            log.info("=============================================");
         }
     }
 
-
-
-
-
-
-
-    //////////////////////////////////////////////////////////////////////////////
 }
 
 

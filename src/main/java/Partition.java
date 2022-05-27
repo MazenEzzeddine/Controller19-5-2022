@@ -177,13 +177,13 @@ public class Partition implements Comparable<Partition> {
 
     @Override
     public String toString() {
-        return "\nPartition{" +
+        return "Partition{" +
                 "id= " + id +
                 ", lag= " + lag +
                 ", arrivalRate= " +  String.format("%.2f",arrivalRate) +
                 ", averageArrivalRate= " +  String.format("%.2f",getAverageArrivalRate()) +
                 ", averageLag= " +  String.format("%.2f",getAverageLag()) +
-        "}";
+        "}\n";
     }
 
 
