@@ -314,7 +314,7 @@ public class Controller implements Runnable {
         for (Partition partition : partitions) {
             parts.add(new Partition(partition.getId(), partition.getLag(), partition.getArrivalRate()));
         }
-        dynamicAverageMaxConsumptionRate = 29.0;
+        dynamicAverageMaxConsumptionRate = 95.0;
 
         long maxLagCapacity;
 
