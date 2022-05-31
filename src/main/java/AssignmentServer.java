@@ -72,6 +72,7 @@ public class AssignmentServer implements Runnable{
         public void getAssignment(AssignmentRequest request, StreamObserver<AssignmentResponse> responseObserver) {
 
            log.info(request.getRequest());
+           //TODO Synchronize access to assignment
             List<Consumer> assignment = Controller.assignment;
             log.info("The assignment is {}", assignment);
 

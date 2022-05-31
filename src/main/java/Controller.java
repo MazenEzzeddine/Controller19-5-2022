@@ -205,7 +205,6 @@ public class Controller implements Runnable {
 
     public static void scaleAsPerBinPack(int currentsize) {
 
-
         log.info("Currently we have this number of consumers {}", currentsize);
         int neededsize = binPackAndScale();
         log.info("We currently need the following consumers (as per the bin pack) {}", neededsize);
@@ -327,7 +326,57 @@ public class Controller implements Runnable {
                 log.info("Partition {}", p.getId());
             }
         }
-        assignment = consumers;
+
+
+        List<Consumer> fairconsumers = new ArrayList<>(consumers.size());
+
+        List<Partition> fairpartitions= new ArrayList<>();
+
+        for (Consumer cons : consumers) {
+            fairconsumers.add(new Consumer(cons.getId(), maxLagCapacity, dynamicAverageMaxConsumptionRate));
+
+            for(Partition p : cons.getAssignedPartitions()){
+                fairpartitions.add(p);
+            }
+        }
+
+
+        fairpartitions.sort(new Comparator<Partition>() {
+            @Override
+            public int compare(Partition o1, Partition o2) {
+                return Double.compare(o2.getArrivalRate(), o1.getArrivalRate());
+            }
+        });
+
+        int fairindex = 0;
+        for(Partition p : fairpartitions){
+            log.info("fair partition {}", p.getId());
+            fairconsumers.get(fairindex).assignPartition(p);
+            if(fairconsumers.size()>0) {
+                fairindex = (fairindex + 1) % fairconsumers.size();
+            }
+        }
+
+       /* int partitionindex=0;
+        for (Consumer cons : fairconsumers) {
+            cons.assignPartition(fairpartitions.get(partitionindex));
+            if(partitionindex==fairpartitions.size()-1){
+                break;
+            }
+            partitionindex++;
+
+        }
+*/
+
+        for (Consumer cons : fairconsumers) {
+            log.info("fair consumer {} is assigned the following partitions", cons.getId() );
+            for(Partition p : cons.getAssignedPartitions()) {
+                log.info("fair Partition {}", p.getId());
+            }
+        }
+
+
+        assignment = fairconsumers;
         return consumers.size();
     }
 
