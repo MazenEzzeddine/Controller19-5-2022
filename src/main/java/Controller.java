@@ -153,6 +153,9 @@ public class Controller implements Runnable {
 
             partitions.get(p.partition()).setLag(latestOffset - committedoffset);
 
+            //TODO if abs(currentPartitionArrivalRate -  previousPartitionArrivalRate) > 15
+            // TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
+
             if (timeoffset2 == -1) {
                 timeoffset2 = latestOffset;
             }
@@ -329,12 +332,10 @@ public class Controller implements Runnable {
 
 
         List<Consumer> fairconsumers = new ArrayList<>(consumers.size());
-
         List<Partition> fairpartitions= new ArrayList<>();
 
         for (Consumer cons : consumers) {
             fairconsumers.add(new Consumer(cons.getId(), maxLagCapacity, dynamicAverageMaxConsumptionRate));
-
             for(Partition p : cons.getAssignedPartitions()){
                 fairpartitions.add(p);
             }
