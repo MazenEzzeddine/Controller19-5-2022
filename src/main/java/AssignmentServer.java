@@ -96,15 +96,12 @@ public class AssignmentServer implements Runnable{
                 }
 
             }
-
             responseObserver.onNext(AssignmentResponse.newBuilder().addAllConsumers(assignmentReply).build());
             responseObserver.onCompleted();
             log.info("Sent Assignment to client");
             Controller.joiningTime = Duration.between( Controller.lastScaleTime, Instant.now()).getSeconds();
             log.info("joiningTime {}", Controller.joiningTime);
-
         }
     }
-
 
 }

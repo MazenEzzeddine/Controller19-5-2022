@@ -80,7 +80,7 @@ public class Controller implements Runnable {
 
         consumerGroupDescriptionMap = futureOfDescribeConsumerGroupsResult.get();
 
-      /*  dynamicTotalMaxConsumptionRate = 0.0;
+      /*dynamicTotalMaxConsumptionRate = 0.0;
         for (MemberDescription memberDescription : consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members()) {
             log.info("Calling the consumer {} for its consumption rate ", memberDescription.host());
 
@@ -92,8 +92,8 @@ public class Controller implements Runnable {
                 (float) consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
 
         log.info("The total consumption rate of the CG is {}", String.format("%.2f",dynamicTotalMaxConsumptionRate));
-        log.info("The average consumption rate of the CG is {}", String.format("%.2f", dynamicAverageMaxConsumptionRate));*/
-
+        log.info("The average consumption rate of the CG is {}", String.format("%.2f", dynamicAverageMaxConsumptionRate));
+*/
     }
 
 
@@ -150,9 +150,7 @@ public class Controller implements Runnable {
             long timeoffset2 = timestampOffsets2.get(t).offset();
             long committedoffset = committedOffsets.get(t).offset();
 
-
             partitions.get(p.partition()).setLag(latestOffset - committedoffset);
-
             //TODO if abs(currentPartitionArrivalRate -  previousPartitionArrivalRate) > 15
             // TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
 
@@ -226,25 +224,18 @@ public class Controller implements Runnable {
         } else if (replicasForscale > 0) {
             //checking for scale up coooldown
             //TODO externalize these cool down
-            if (Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() <= 60 ) {
-                log.info("Scale up cooldown period has not elapsed yet not taking decisions");
-                return;
-            } else {
+
                 log.info("We have to upscale by {}", replicasForscale);
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
                     log.info("I have Upscaled you should have {}", neededsize);
                 }
-            }
+
             lastScaleUpDecision = Instant.now();
             lastScaleDownDecision = Instant.now();
             lastCGQuery = Instant.now();
             lastScaleTime = Instant.now();
-        } else {
-            if (Duration.between(lastScaleDownDecision, Instant.now()).toSeconds() <= 60) {
-                log.info("Scale down cooldown period has not elapsed yet not taking scale down decisions");
-                return;
-            } else {
+        }  else {
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
                     log.info("I have Downscaled you should have {}", neededsize);
@@ -254,12 +245,11 @@ public class Controller implements Runnable {
                     lastScaleTime = Instant.now();
                 }
             }
-        }
+
     }
 
 
     private static int binPackAndScale() {
-
         log.info("Inside binPackAndScale ");
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
@@ -282,12 +272,13 @@ public class Controller implements Runnable {
                 partition.setLag(maxLagCapacity);
             }
         }
-
         //if a certain partition has an arrival rate  higher than R  set its arrival rate  to R
+        //that should not happened in a well partionned topic
         for (Partition partition : parts) {
             if (partition.getArrivalRate() > dynamicAverageMaxConsumptionRate) {
                 log.info("Since partition {} has arrival rate {} higher than consumer service rate {}" +
-                                " we are truncating its arrival rate", partition.getId(),  String.format("%.2f",  partition.getArrivalRate()),
+                                " we are truncating its arrival rate", partition.getId(),
+                        String.format("%.2f",  partition.getArrivalRate()),
                         String.format("%.2f", partition.getArrivalRate()));
                 partition.setArrivalRate(dynamicAverageMaxConsumptionRate);
             }
@@ -357,7 +348,6 @@ public class Controller implements Runnable {
                 fairindex = (fairindex + 1) % fairconsumers.size();
             }
         }
-
        /* int partitionindex=0;
         for (Consumer cons : fairconsumers) {
             cons.assignPartition(fairpartitions.get(partitionindex));
@@ -368,14 +358,12 @@ public class Controller implements Runnable {
 
         }
 */
-
         for (Consumer cons : fairconsumers) {
             log.info("fair consumer {} is assigned the following partitions", cons.getId() );
             for(Partition p : cons.getAssignedPartitions()) {
                 log.info("fair Partition {}", p.getId());
             }
         }
-
 
         assignment = fairconsumers;
         return consumers.size();
@@ -405,9 +393,7 @@ public class Controller implements Runnable {
             log.info("New Iteration:");
             try {
                 getCommittedLatestOffsetsAndLag();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (ExecutionException | InterruptedException e) {
                 e.printStackTrace();
             }
             log.info("Sleeping for {} seconds", sleep / 1000.0);

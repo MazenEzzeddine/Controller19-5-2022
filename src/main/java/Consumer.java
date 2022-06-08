@@ -75,18 +75,11 @@ public class Consumer {
         result = 31 * result + (remainingLagCapacity != null ? remainingLagCapacity.hashCode() : 0);
         return result;
     }
-    public void setRemainingArrivalCapacity(double remainingArrivalCapacity) {
-        this.remainingArrivalCapacity = remainingArrivalCapacity;
-    }
-    public void setRemainingLagCapacity(Long remaininglagcapacity) {
-        this.remainingLagCapacity = remaininglagcapacity;
-    }
+
+
     public List<Partition> getAssignedPartitions() {
         return assignedPartitions;
     }
 
-    public void setAssignedPartitions(List<Partition> assignedPartitions) {
-        this.assignedPartitions = assignedPartitions;
-    }
 
 }
