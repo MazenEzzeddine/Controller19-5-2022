@@ -223,7 +223,7 @@ public class Controller implements Runnable {
             }*/
         } else if (replicasForscale > 0) {
             //checking for scale up coooldown
-            //TODO externalize these cool down
+            //TODO IF and Else IF can be
 
                 log.info("We have to upscale by {}", replicasForscale);
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
@@ -273,7 +273,7 @@ public class Controller implements Runnable {
             }
         }
         //if a certain partition has an arrival rate  higher than R  set its arrival rate  to R
-        //that should not happened in a well partionned topic
+        //that should not happen in a well partionned topic
         for (Partition partition : parts) {
             if (partition.getArrivalRate() > dynamicAverageMaxConsumptionRate) {
                 log.info("Since partition {} has arrival rate {} higher than consumer service rate {}" +
@@ -314,12 +314,15 @@ public class Controller implements Runnable {
 
         log.info(" The BP scaler recommended {}", consumers.size());
 
-        for (Consumer cons : consumers) {
+
+
+        // write down some logs for debugging purposes
+        /*for (Consumer cons : consumers) {
             log.info("consumer {} is assigned the following partitions", cons.getId() );
             for(Partition p : cons.getAssignedPartitions()) {
                 log.info("Partition {}", p.getId());
             }
-        }
+        }*/
 
 
         List<Consumer> fairconsumers = new ArrayList<>(consumers.size());
@@ -332,7 +335,7 @@ public class Controller implements Runnable {
             }
         }
 
-
+        //sort partitions in descending order for debugging purposes
         fairpartitions.sort(new Comparator<Partition>() {
             @Override
             public int compare(Partition o1, Partition o2) {

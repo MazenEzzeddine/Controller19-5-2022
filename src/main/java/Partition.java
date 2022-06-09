@@ -6,24 +6,6 @@ public class Partition implements Comparable<Partition> {
     private Long currentLastOffset;
     private Long previousLastOffset;
     private double previousArrivalRate;
-
-
-    //TODO is that really needed?
-    public double getPreviousArrivalRate() {
-        return previousArrivalRate;
-    }
-    public void setPreviousArrivalRate(double previousArrivalRate) {
-        this.previousArrivalRate = previousArrivalRate;
-    }
-    public double[] getArrivalRateWindow() {
-        return arrivalRateWindow;
-    }
-    public void setArrivalRateWindow(double[] arrivalRateWindow) {
-        this.arrivalRateWindow = arrivalRateWindow;
-    }
-
-    //private Long[] offsetWindow = new Long[4] ;
-
     //TODO externlize windown length and add wondows for
     //TODO rate of arrival rate d/dt(arrival rate)
     // TODO and window for the lag rate d/dt (lag)
@@ -32,19 +14,6 @@ public class Partition implements Comparable<Partition> {
     private double[] rateForarrivalRateWindow = new double[4];
     private double[] rateForLagWindow = new double[4];
 
-
-    public Long getCurrentLastOffset() {
-        return currentLastOffset;
-    }
-    public void setCurrentLastOffset(Long currentLastOffset) {
-        this.currentLastOffset = currentLastOffset;
-    }
-    public Long getPreviousLastOffset() {
-        return previousLastOffset;
-    }
-    public void setPreviousLastOffset(Long previousLastOffset) {
-        this.previousLastOffset = previousLastOffset;
-    }
 
     public Partition(int id, long lag, double arrivalRate) {
         this.id = id;
@@ -62,6 +31,31 @@ public class Partition implements Comparable<Partition> {
         }
     }
 
+    //TODO is that really needed?
+    public double getPreviousArrivalRate() {
+        return previousArrivalRate;
+    }
+    public void setPreviousArrivalRate(double previousArrivalRate) {
+        this.previousArrivalRate = previousArrivalRate;
+    }
+    public double[] getArrivalRateWindow() {
+        return arrivalRateWindow;
+    }
+    public void setArrivalRateWindow(double[] arrivalRateWindow) {
+        this.arrivalRateWindow = arrivalRateWindow;
+    }
+    public Long getCurrentLastOffset() {
+        return currentLastOffset;
+    }
+    public void setCurrentLastOffset(Long currentLastOffset) {
+        this.currentLastOffset = currentLastOffset;
+    }
+    public Long getPreviousLastOffset() {
+        return previousLastOffset;
+    }
+    public void setPreviousLastOffset(Long previousLastOffset) {
+        this.previousLastOffset = previousLastOffset;
+    }
 
     public double getAverageArrivalRate() {
         double averageArrivalRate = 0.0;
@@ -75,7 +69,6 @@ public class Partition implements Comparable<Partition> {
     public double getAverageLag() {
         Long averageLag = 0L;
         for (int i = 0; i < 4; i++) {
-            //offsetWindow[i] = 0L;
             averageLag += lagWindow[i];
         }
         return (double) averageLag / 4.0;

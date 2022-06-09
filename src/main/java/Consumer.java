@@ -3,23 +3,16 @@ import java.util.List;
 
 public class Consumer {
     private final Long lagCapacity;
-
+    private final double arrivalCapacity;
+    private final int id;
     private double remainingArrivalCapacity;
     private List<Partition> assignedPartitions;
-    private final double arrivalCapacity;
     private Long remainingLagCapacity;
-
-    private final int id;
-
-    public int getId() {
-        return id;
-    }
-
 
     public Consumer(int id, Long lagCapacity, double arrivalCapacity) {
         this.lagCapacity = lagCapacity;
         this.arrivalCapacity = arrivalCapacity;
-        this.id=id;
+        this.id = id;
 
         this.remainingLagCapacity = lagCapacity;
         this.remainingArrivalCapacity = arrivalCapacity;
@@ -28,24 +21,21 @@ public class Consumer {
 
 
 
+    public int getId() {
+        return id;
+    }
     public Long getRemainingLagCapacity() {
         return remainingLagCapacity;
     }
-
-
-
-
-    public double getRemainingArrivalCapacity() {
+        public double getRemainingArrivalCapacity() {
         return remainingArrivalCapacity;
     }
-
-
 
 
     //TODO attention to when bin packing using average arrival rates or average lag
     //TODO set remaining capacities accordingly
 
-    public void  assignPartition(Partition partition) {
+    public void assignPartition(Partition partition) {
         assignedPartitions.add(partition);
         remainingLagCapacity -= partition.getLag();
         remainingArrivalCapacity -= partition.getArrivalRate();
@@ -53,10 +43,10 @@ public class Consumer {
 
     @Override
     public String toString() {
-        return "\nConsumer{" + "id="+ id +
-                ",  lagCapacity=" +lagCapacity +
-                ", remainingArrivalCapacity=" + String.format("%.2f",remainingArrivalCapacity) +
-                ", arrivalCapacity=" + String.format("%.2f",arrivalCapacity) +
+        return "\nConsumer{" + "id=" + id +
+                ",  lagCapacity=" + lagCapacity +
+                ", remainingArrivalCapacity=" + String.format("%.2f", remainingArrivalCapacity) +
+                ", arrivalCapacity=" + String.format("%.2f", arrivalCapacity) +
                 ", remainingLagCapacity=" + remainingLagCapacity +
                 ", assignedPartitions= \n" + assignedPartitions +
                 "}";
