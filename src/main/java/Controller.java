@@ -80,7 +80,7 @@ public class Controller implements Runnable {
 
         consumerGroupDescriptionMap = futureOfDescribeConsumerGroupsResult.get();
 
-      /*dynamicTotalMaxConsumptionRate = 0.0;
+      dynamicTotalMaxConsumptionRate = 0.0;
         for (MemberDescription memberDescription : consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members()) {
             log.info("Calling the consumer {} for its consumption rate ", memberDescription.host());
 
@@ -93,7 +93,6 @@ public class Controller implements Runnable {
 
         log.info("The total consumption rate of the CG is {}", String.format("%.2f",dynamicTotalMaxConsumptionRate));
         log.info("The average consumption rate of the CG is {}", String.format("%.2f", dynamicAverageMaxConsumptionRate));
-*/
     }
 
 
@@ -181,7 +180,7 @@ public class Controller implements Runnable {
         }
         log.info("totalArrivalRate {}", totalArrivalRate);
 
-        if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 15) {
+        if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 30) {
             queryConsumerGroup();
             lastCGQuery = Instant.now();
         }
@@ -223,7 +222,7 @@ public class Controller implements Runnable {
             }*/
         } else if (replicasForscale > 0) {
             //checking for scale up coooldown
-            //TODO IF and Else IF can be
+            //TODO IF and Else IF can be in the same logic
 
                 log.info("We have to upscale by {}", replicasForscale);
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
@@ -345,7 +344,7 @@ public class Controller implements Runnable {
 
         int fairindex = 0;
         for(Partition p : fairpartitions){
-            log.info("fair partition {}", p.getId());
+            //log.info("fair partition {}", p.getId());
             fairconsumers.get(fairindex).assignPartition(p);
             if(fairconsumers.size()>0) {
                 fairindex = (fairindex + 1) % fairconsumers.size();
@@ -401,7 +400,7 @@ public class Controller implements Runnable {
             }
             log.info("Sleeping for {} seconds", sleep / 1000.0);
             log.info("End Iteration;");
-            log.info("=============================================");
+            log.info("============================================");
             try {
                 Thread.sleep(sleep);
             } catch (InterruptedException e) {

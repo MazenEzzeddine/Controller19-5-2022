@@ -83,7 +83,7 @@ public class AssignmentServer implements Runnable{
                 for (Partition p : cons.getAssignedPartitions()) {
                     log.info("partition {} is assigned to consumer {}", p.getId(), cons.getId());
                    PartitionGrpc pgrpc =  PartitionGrpc.newBuilder().setId(p.getId()).build();
-                    pgrpclist.add(pgrpc);
+                   pgrpclist.add(pgrpc);
                 }
                 ConsumerGrpc consg  =  ConsumerGrpc.newBuilder().setId(cons.getId()).addAllAssignedPartitions(pgrpclist).build();
                 assignmentReply.add(consg);
