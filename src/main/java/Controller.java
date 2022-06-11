@@ -153,6 +153,9 @@ public class Controller implements Runnable {
             //TODO if abs(currentPartitionArrivalRate -  previousPartitionArrivalRate) > 15
             // TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
 
+            if(timeoffset2==timeoffset1)
+                break;
+
             if (timeoffset2 == -1) {
                 timeoffset2 = latestOffset;
             }
@@ -166,6 +169,7 @@ public class Controller implements Runnable {
                 log.info(partitions.get(p.partition()));
             } else {
                 currentPartitionArrivalRate = (double) (timeoffset2 - timeoffset1) / doublesleep;
+                 //if(currentPartitionArrivalRate==0) continue;
                 partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
                 log.info(" Arrival rate into partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getArrivalRate());
@@ -178,6 +182,7 @@ public class Controller implements Runnable {
             previousPartitionArrivalRate.put(p.partition(), currentPartitionArrivalRate);
             totalArrivalRate += currentPartitionArrivalRate;
         }
+        //report total arrival only if not zeo the loop has not exited.
         log.info("totalArrivalRate {}", totalArrivalRate);
 
         if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 30) {
