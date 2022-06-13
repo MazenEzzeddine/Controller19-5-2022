@@ -182,7 +182,7 @@ public class Controller implements Runnable {
             previousPartitionArrivalRate.put(p.partition(), currentPartitionArrivalRate);
             totalArrivalRate += currentPartitionArrivalRate;
         }
-        //report total arrival only if not zeo the loop has not exited.
+        //report total arrival only if not zero only the loop has not exited.
         log.info("totalArrivalRate {}", totalArrivalRate);
 
         if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 30) {
@@ -347,24 +347,31 @@ public class Controller implements Runnable {
             }
         });
 
-        int fairindex = 0;
+
+        assignTopicBinPack(fairconsumers,consumers,fairpartitions);
+
+        //fairpartitions is the partitions arrival arrival rate
+
+
+
+
+        //round robin like fair assignot good for linear cases
+       /* int fairindex = 0;
         for(Partition p : fairpartitions){
             //log.info("fair partition {}", p.getId());
             fairconsumers.get(fairindex).assignPartition(p);
             if(fairconsumers.size()>0) {
                 fairindex = (fairindex + 1) % fairconsumers.size();
             }
-        }
-       /* int partitionindex=0;
-        for (Consumer cons : fairconsumers) {
-            cons.assignPartition(fairpartitions.get(partitionindex));
-            if(partitionindex==fairpartitions.size()-1){
-                break;
-            }
-            partitionindex++;
+        }*/
 
-        }
-*/
+
+
+        //let's do for now a fixed assignment
+
+
+
+
         for (Consumer cons : fairconsumers) {
             log.info("fair consumer {} is assigned the following partitions", cons.getId() );
             for(Partition p : cons.getAssignedPartitions()) {
@@ -374,6 +381,84 @@ public class Controller implements Runnable {
 
         assignment = fairconsumers;
         return consumers.size();
+    }
+
+
+
+    public static void assignTopicBinPack(
+            final List<Consumer> assignment,
+            final List<Consumer> consumers,
+            final List<Partition> partitionsArrivalRate) {
+        if (consumers.isEmpty()) {
+            return;
+        }// Track total lag assigned to each consumer (for the current topic)
+        final Map<Integer, Double> consumerTotalArrivalRate = new HashMap<>(consumers.size());
+        final Map<Integer, Integer> consumerTotalPartitions = new HashMap<>(consumers.size());
+        final Map<Integer, Double> consumerRemainingAllowableArrivalRate = new HashMap<>(consumers.size());
+        final Map<Integer, Double> consumerAllowableArrivalRate = new HashMap<>(consumers.size());
+
+
+        for (Consumer cons : consumers) {
+            consumerTotalArrivalRate.put(cons.getId(), 0.0);
+            consumerAllowableArrivalRate.put(cons.getId(), 95.0);
+        }
+
+        // Track total number of partitions assigned to each consumer (for the current topic)
+        for (Consumer cons : consumers) {
+            consumerTotalPartitions.put(cons.getId(), 0);
+            consumerRemainingAllowableArrivalRate.put(cons.getId(), consumerAllowableArrivalRate.get(cons.getId()));
+        }
+
+        // Assign partitions in descending order of lag, then ascending by partition
+        //First fit decreasing
+        partitionsArrivalRate.sort((p1, p2) -> {
+            // If lag is equal, lowest partition id first
+            if (p1.getArrivalRate() == p2.getArrivalRate()) {
+                return Integer.compare(p1.getId(), p2.getId());
+            }
+            // Highest lag first
+            return Double.compare(p2.getArrivalRate(), p1.getArrivalRate());
+        });
+        for (Partition partition : partitionsArrivalRate) {
+            // Assign to the consumer with least number of partitions, then smallest total lag, then smallest id
+            // returns the consumer with lowest assigned partitions, if all assigned partitions equal returns the min total lag
+            final Integer memberId = Collections
+                    .min(consumerTotalArrivalRate.entrySet(), (c1, c2) -> {
+                        // Lowest partition count first
+
+                        //TODO is that necessary partition count first... not really...
+                        final int comparePartitionCount = Integer.compare(consumerTotalPartitions.get(c1.getKey()),
+                                consumerTotalPartitions.get(c2.getKey()));
+                        if (comparePartitionCount != 0) {
+                            return comparePartitionCount;}
+                        // If partition count is equal, lowest total lag first
+                        final int compareTotalLags = Double.compare(c1.getValue(), c2.getValue());
+                        if (compareTotalLags != 0) {
+                            return compareTotalLags;}
+                        // If total lag is equal, lowest consumer id first
+                        return c1.getKey().compareTo(c2.getKey());
+                    }).getKey();
+            //we currently have the the consumer with the lowest lag
+            System.out.println("Assigning the consumer {} with the lowest ArrivalRate {} to the partition with the highest ArrivalRate {} "+
+                    memberId + "  " + consumerTotalArrivalRate.get(memberId) + " " + partition.getArrivalRate());
+
+
+
+            assignment.get(memberId).assignPartition(partition);
+            consumerTotalArrivalRate.put(memberId, consumerTotalArrivalRate.getOrDefault(memberId, 0.0) + partition.getArrivalRate());
+            consumerTotalPartitions.put(memberId, consumerTotalPartitions.getOrDefault(memberId, 0) + 1);
+            consumerRemainingAllowableArrivalRate.put(memberId, consumerAllowableArrivalRate.get(memberId)
+                    - consumerTotalArrivalRate.get(memberId));
+            System.out.println("The remaining allowable lag for consumer {} is {} " +
+                    memberId + " " + (consumerAllowableArrivalRate.get(memberId) - consumerTotalArrivalRate.get(memberId)));
+
+            System.out.println(
+                    "Assigned partition {}-{} to consumer {}.  partition_lag={}, consumer_current_total_lag={} " +
+                            " " + partition.getId() +
+                            " " + memberId +
+                            " " + partition.getArrivalRate() +
+                            " " + consumerTotalArrivalRate.get(memberId));
+        }
     }
 
 
