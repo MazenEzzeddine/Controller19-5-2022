@@ -200,7 +200,7 @@ public class Controller implements Runnable {
     private static void youMightWanttoScaleUsingBinPack() {
         log.info("Calling the bin pack scaler");
         int size = consumerGroupDescriptionMap.get(Controller.CONSUMER_GROUP).members().size();
-        if(Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() >= 60) {
+        if(Duration.between(lastScaleUpDecision, Instant.now()).toSeconds() >= 30) {
             scaleAsPerBinPack(size);
         } else {
             log.info("Scale  cooldown period has not elapsed yet not taking decisions");
@@ -477,7 +477,7 @@ public class Controller implements Runnable {
 
         try {
             //Initial delay so that the producer has started.
-            Thread.sleep(60*1000);
+            Thread.sleep(30*1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
