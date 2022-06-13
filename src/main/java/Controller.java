@@ -151,7 +151,7 @@ public class Controller implements Runnable {
 
             partitions.get(p.partition()).setLag(latestOffset - committedoffset);
             //TODO if abs(currentPartitionArrivalRate -  previousPartitionArrivalRate) > 15
-            // TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
+            //TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
 
             if(timeoffset2==timeoffset1)
                 break;
@@ -226,9 +226,7 @@ public class Controller implements Runnable {
                 //TODO skipping it for now. (enforce rebalance)
             }*/
         } else if (replicasForscale > 0) {
-            //checking for scale up coooldown
             //TODO IF and Else IF can be in the same logic
-
                 log.info("We have to upscale by {}", replicasForscale);
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
@@ -239,7 +237,7 @@ public class Controller implements Runnable {
             lastScaleDownDecision = Instant.now();
             lastCGQuery = Instant.now();
             lastScaleTime = Instant.now();
-        }  else {
+        } else {
                 try (final KubernetesClient k8s = new DefaultKubernetesClient()) {
                     k8s.apps().deployments().inNamespace("default").withName("cons1persec").scale(neededsize);
                     log.info("I have Downscaled you should have {}", neededsize);
@@ -249,7 +247,6 @@ public class Controller implements Runnable {
                     lastScaleTime = Instant.now();
                 }
             }
-
     }
 
 
@@ -347,11 +344,10 @@ public class Controller implements Runnable {
             }
         });
 
-
-        assignTopicBinPack(fairconsumers,consumers,fairpartitions);
-
-        //fairpartitions is the partitions arrival arrival rate
-
+        //1. list of consumers that will contain the fair assignment
+        //2. list of consumers out of the bin pack.
+        //3. the partition sorted in their decreasing arrival rate.
+        assignPartitionsFairly(fairconsumers,consumers,fairpartitions);
 
 
 
@@ -364,11 +360,6 @@ public class Controller implements Runnable {
                 fairindex = (fairindex + 1) % fairconsumers.size();
             }
         }*/
-
-
-
-        //let's do for now a fixed assignment
-
 
 
 
@@ -385,7 +376,7 @@ public class Controller implements Runnable {
 
 
 
-    public static void assignTopicBinPack(
+    public static void assignPartitionsFairly(
             final List<Consumer> assignment,
             final List<Consumer> consumers,
             final List<Partition> partitionsArrivalRate) {
@@ -409,14 +400,14 @@ public class Controller implements Runnable {
             consumerRemainingAllowableArrivalRate.put(cons.getId(), consumerAllowableArrivalRate.get(cons.getId()));
         }
 
-        // Assign partitions in descending order of lag, then ascending by partition
+        // might want to remove, the partitions are sorted anyway.
         //First fit decreasing
         partitionsArrivalRate.sort((p1, p2) -> {
             // If lag is equal, lowest partition id first
             if (p1.getArrivalRate() == p2.getArrivalRate()) {
                 return Integer.compare(p1.getId(), p2.getId());
             }
-            // Highest lag first
+            // Highest arrival rate first
             return Double.compare(p2.getArrivalRate(), p1.getArrivalRate());
         });
         for (Partition partition : partitionsArrivalRate) {
@@ -426,12 +417,12 @@ public class Controller implements Runnable {
                     .min(consumerTotalArrivalRate.entrySet(), (c1, c2) -> {
                         // Lowest partition count first
 
-                        //TODO is that necessary partition count first... not really...
+                        //TODO is that necessary partition count first... not really......
                         final int comparePartitionCount = Integer.compare(consumerTotalPartitions.get(c1.getKey()),
                                 consumerTotalPartitions.get(c2.getKey()));
                         if (comparePartitionCount != 0) {
                             return comparePartitionCount;}
-                        // If partition count is equal, lowest total lag first
+                        // If partition count is equal, lowest total lag first, get the consumer with the lowest arrival rate
                         final int compareTotalLags = Double.compare(c1.getValue(), c2.getValue());
                         if (compareTotalLags != 0) {
                             return compareTotalLags;}

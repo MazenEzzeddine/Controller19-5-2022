@@ -27,7 +27,7 @@ public class Consumer {
     public Long getRemainingLagCapacity() {
         return remainingLagCapacity;
     }
-        public double getRemainingArrivalCapacity() {
+    public double getRemainingArrivalCapacity() {
         return remainingArrivalCapacity;
     }
 
