@@ -185,6 +185,8 @@ public class Controller implements Runnable {
         //report total arrival only if not zero only the loop has not exited.
         log.info("totalArrivalRate {}", totalArrivalRate);
 
+
+         // attention not to have this CG querying interval less than cooldown interval
         if (Duration.between(lastCGQuery, Instant.now()).toSeconds() >= 30) {
             queryConsumerGroup();
             lastCGQuery = Instant.now();

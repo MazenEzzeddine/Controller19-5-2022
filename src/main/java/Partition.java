@@ -3,8 +3,7 @@ public class Partition implements Comparable<Partition> {
     private int id;
     private long lag;
     private double arrivalRate;
-    private Long currentLastOffset;
-    private Long previousLastOffset;
+
     private double previousArrivalRate;
     //TODO externlize windown length and add wondows for
     //TODO rate of arrival rate d/dt(arrival rate)
@@ -19,8 +18,7 @@ public class Partition implements Comparable<Partition> {
         this.id = id;
         this.lag = lag;
         this.arrivalRate = arrivalRate;
-        this.currentLastOffset = 0L;
-        this.previousLastOffset = 0L;
+
 
         for (int i = 0; i < 4; i++) {
             //offsetWindow[i] = 0L;
@@ -43,18 +41,6 @@ public class Partition implements Comparable<Partition> {
     }
     public void setArrivalRateWindow(double[] arrivalRateWindow) {
         this.arrivalRateWindow = arrivalRateWindow;
-    }
-    public Long getCurrentLastOffset() {
-        return currentLastOffset;
-    }
-    public void setCurrentLastOffset(Long currentLastOffset) {
-        this.currentLastOffset = currentLastOffset;
-    }
-    public Long getPreviousLastOffset() {
-        return previousLastOffset;
-    }
-    public void setPreviousLastOffset(Long previousLastOffset) {
-        this.previousLastOffset = previousLastOffset;
     }
 
     public double getAverageArrivalRate() {
