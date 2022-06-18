@@ -141,18 +141,15 @@ public class Controller implements Runnable {
         for (TopicPartitionInfo p : td.partitions()) {
             previousPartitionArrivalRate.put(p.partition(), 0.0);
         }
-
         for (TopicPartitionInfo p : td.partitions()) {
             TopicPartition t = new TopicPartition(topic, p.partition());
             long latestOffset = latestOffsets.get(t).offset();
             long timeoffset1 = timestampOffsets1.get(t).offset();
             long timeoffset2 = timestampOffsets2.get(t).offset();
             long committedoffset = committedOffsets.get(t).offset();
-
             partitions.get(p.partition()).setLag(latestOffset - committedoffset);
             //TODO if abs(currentPartitionArrivalRate -  previousPartitionArrivalRate) > 15
             //TODO currentPartitionArrivalRate= previousPartitionArrivalRate;
-
             if(timeoffset2==timeoffset1)
                 break;
 
@@ -170,6 +167,9 @@ public class Controller implements Runnable {
             } else {
                 currentPartitionArrivalRate = (double) (timeoffset2 - timeoffset1) / doublesleep;
                  //if(currentPartitionArrivalRate==0) continue;
+                //TODO only update currentPartitionArrivalRate if (currentPartitionArrivalRate - previousPartitionArrivalRate) < 10 or threshold
+                // currentPartitionArrivalRate = previousPartitionArrivalRate.get(p.partition());
+                //TODO break
                 partitions.get(p.partition()).setArrivalRate(currentPartitionArrivalRate);
                 log.info(" Arrival rate into partition {} is {}", t.partition(),
                         partitions.get(p.partition()).getArrivalRate());
@@ -413,8 +413,8 @@ public class Controller implements Runnable {
             return Double.compare(p2.getArrivalRate(), p1.getArrivalRate());
         });
         for (Partition partition : partitionsArrivalRate) {
-            // Assign to the consumer with least number of partitions, then smallest total lag, then smallest id
-            // returns the consumer with lowest assigned partitions, if all assigned partitions equal returns the min total lag
+            // Assign to the consumer with least number of partitions, then smallest total lag, then smallest id arrival rate
+            // returns the consumer with lowest assigned partitions, if all assigned partitions equal returns the min total arrival rate
             final Integer memberId = Collections
                     .min(consumerTotalArrivalRate.entrySet(), (c1, c2) -> {
                         // Lowest partition count first
@@ -442,11 +442,11 @@ public class Controller implements Runnable {
             consumerTotalPartitions.put(memberId, consumerTotalPartitions.getOrDefault(memberId, 0) + 1);
             consumerRemainingAllowableArrivalRate.put(memberId, consumerAllowableArrivalRate.get(memberId)
                     - consumerTotalArrivalRate.get(memberId));
-            System.out.println("The remaining allowable lag for consumer {} is {} " +
+            System.out.println("The remaining allowable arrival rate for consumer {} is {} " +
                     memberId + " " + (consumerAllowableArrivalRate.get(memberId) - consumerTotalArrivalRate.get(memberId)));
 
             System.out.println(
-                    "Assigned partition {}-{} to consumer {}.  partition_lag={}, consumer_current_total_lag={} " +
+                    "Assigned partition {}-{} to consumer {}.  partition_arrival_rate={}, consumer_current_total_arrival_rate{} " +
                             " " + partition.getId() +
                             " " + memberId +
                             " " + partition.getArrivalRate() +
@@ -464,10 +464,7 @@ public class Controller implements Runnable {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
-
         doublesleep = (double) sleep / 1000.0;
-
         try {
             //Initial delay so that the producer has started.
             Thread.sleep(30*1000);
@@ -491,7 +488,6 @@ public class Controller implements Runnable {
             }
         }
     }
-
 }
 
 

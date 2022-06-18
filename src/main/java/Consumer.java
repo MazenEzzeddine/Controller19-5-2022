@@ -19,8 +19,6 @@ public class Consumer {
         assignedPartitions = new ArrayList<>();
     }
 
-
-
     public int getId() {
         return id;
     }
