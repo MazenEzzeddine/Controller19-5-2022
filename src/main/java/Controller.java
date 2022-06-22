@@ -256,11 +256,16 @@ public class Controller implements Runnable {
         log.info("Inside binPackAndScale ");
         List<Consumer> consumers = new ArrayList<>();
         int consumerCount = 0;
-        List<Partition> parts = new ArrayList<>();
 
-        for (Partition partition : partitions) {
+
+        // Collections.copy(parts,partitions);
+
+        //List.copyOf(partitions);
+        List<Partition> parts = new ArrayList<>(partitions);
+
+    /*    for (Partition partition : partitions) {
             parts.add(new Partition(partition.getId(), partition.getLag(), partition.getArrivalRate()));
-        }
+        }*/
         dynamicAverageMaxConsumptionRate = 95.0;
 
         long maxLagCapacity;
@@ -294,7 +299,9 @@ public class Controller implements Runnable {
         for (Partition partition : parts) {
             for (Consumer cons : consumers) {
                 //TODO externalize these choices on the inout to the FFD bin pack
-                   if (cons.getRemainingLagCapacity() >=   partition.getAverageLag() &&
+                // TODO  hey stupid use instatenous lag instead of average lag.
+                // TODO average lag is a decision on past values especially for long DI.
+                   if (cons.getRemainingLagCapacity() >=  partition.getLag() /*partition.getAverageLag()*/ &&
                             cons.getRemainingArrivalCapacity() >= partition.getArrivalRate()) {
                     cons.assignPartition(partition);
                     // we are done with this partition, go to next
@@ -316,16 +323,6 @@ public class Controller implements Runnable {
         }
 
         log.info(" The BP scaler recommended {}", consumers.size());
-
-
-
-        // write down some logs for debugging purposes
-        /*for (Consumer cons : consumers) {
-            log.info("consumer {} is assigned the following partitions", cons.getId() );
-            for(Partition p : cons.getAssignedPartitions()) {
-                log.info("Partition {}", p.getId());
-            }
-        }*/
 
 
         List<Consumer> fairconsumers = new ArrayList<>(consumers.size());
@@ -352,16 +349,6 @@ public class Controller implements Runnable {
         assignPartitionsFairly(fairconsumers,consumers,fairpartitions);
 
 
-
-        //round robin like fair assignot good for linear cases
-       /* int fairindex = 0;
-        for(Partition p : fairpartitions){
-            //log.info("fair partition {}", p.getId());
-            fairconsumers.get(fairindex).assignPartition(p);
-            if(fairconsumers.size()>0) {
-                fairindex = (fairindex + 1) % fairconsumers.size();
-            }
-        }*/
 
 
 
@@ -423,11 +410,13 @@ public class Controller implements Runnable {
                         final int comparePartitionCount = Integer.compare(consumerTotalPartitions.get(c1.getKey()),
                                 consumerTotalPartitions.get(c2.getKey()));
                         if (comparePartitionCount != 0) {
-                            return comparePartitionCount;}
+                            return comparePartitionCount;
+                        }
                         // If partition count is equal, lowest total lag first, get the consumer with the lowest arrival rate
                         final int compareTotalLags = Double.compare(c1.getValue(), c2.getValue());
                         if (compareTotalLags != 0) {
-                            return compareTotalLags;}
+                            return compareTotalLags;
+                        }
                         // If total lag is equal, lowest consumer id first
                         return c1.getKey().compareTo(c2.getKey());
                     }).getKey();
