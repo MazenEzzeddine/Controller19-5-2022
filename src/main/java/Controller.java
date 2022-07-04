@@ -258,14 +258,8 @@ public class Controller implements Runnable {
         int consumerCount = 0;
 
 
-        // Collections.copy(parts,partitions);
 
-        //List.copyOf(partitions);
         List<Partition> parts = new ArrayList<>(partitions);
-
-    /*    for (Partition partition : partitions) {
-            parts.add(new Partition(partition.getId(), partition.getLag(), partition.getArrivalRate()));
-        }*/
         dynamicAverageMaxConsumptionRate = 95.0;
 
         long maxLagCapacity;
@@ -273,6 +267,7 @@ public class Controller implements Runnable {
         consumers.add(new Consumer(consumerCount, maxLagCapacity, dynamicAverageMaxConsumptionRate));
 
         //if a certain partition has a lag higher than R Wmax set its lag to R*Wmax
+        // atention to the window
         for (Partition partition : parts) {
             if (partition.getLag() > maxLagCapacity) {
                 log.info("Since partition {} has lag {} higher than consumer capacity times wsla {}" +
@@ -287,7 +282,7 @@ public class Controller implements Runnable {
                 log.info("Since partition {} has arrival rate {} higher than consumer service rate {}" +
                                 " we are truncating its arrival rate", partition.getId(),
                         String.format("%.2f",  partition.getArrivalRate()),
-                        String.format("%.2f", partition.getArrivalRate()));
+                        String.format("%.2f", dynamicAverageMaxConsumptionRate));
                 partition.setArrivalRate(dynamicAverageMaxConsumptionRate);
             }
         }
@@ -324,7 +319,7 @@ public class Controller implements Runnable {
 
         log.info(" The BP scaler recommended {}", consumers.size());
 
-
+        // copy consumers and partitions for fair assignment
         List<Consumer> fairconsumers = new ArrayList<>(consumers.size());
         List<Partition> fairpartitions= new ArrayList<>();
 
@@ -417,7 +412,7 @@ public class Controller implements Runnable {
                         if (compareTotalLags != 0) {
                             return compareTotalLags;
                         }
-                        // If total lag is equal, lowest consumer id first
+                        // If total arrival rate  is equal, lowest consumer id first
                         return c1.getKey().compareTo(c2.getKey());
                     }).getKey();
             //we currently have the the consumer with the lowest lag

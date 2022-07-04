@@ -89,17 +89,17 @@ public class AssignmentServer implements Runnable{
                 assignmentReply.add(consg);
             }
 
-            for(ConsumerGrpc cons : assignmentReply){
+          /*  for(ConsumerGrpc cons : assignmentReply){
                 log.info("Consumer {} has the following partitions", cons.getId());
                 for(PartitionGrpc part : cons.getAssignedPartitionsList()){
                     log.info("partition {}", part.getId());
                 }
 
-            }
+            }*/
             responseObserver.onNext(AssignmentResponse.newBuilder().addAllConsumers(assignmentReply).build());
             responseObserver.onCompleted();
             log.info("Sent Assignment to client");
-            Controller.joiningTime = Duration.between( Controller.lastScaleTime, Instant.now()).getSeconds();
+            Controller.joiningTime = Duration.between(Controller.lastScaleTime, Instant.now()).getSeconds();
             log.info("joiningTime {}", Controller.joiningTime);
         }
     }
